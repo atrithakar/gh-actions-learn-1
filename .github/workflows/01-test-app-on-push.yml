@@ -22,6 +22,11 @@ jobs:
             # Exit immediately if a command exits with a non-zero status
             set -e
 
+            if command -v docker &> /dev/null; then
+                echo "Docker is already installed. Skipping setup."
+                exit 0
+            fi
+
             echo "Cleaning up conflicting legacy packages..."
             for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do 
                 sudo apt-get remove -y $pkg || true
