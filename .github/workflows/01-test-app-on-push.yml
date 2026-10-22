@@ -16,7 +16,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
-      - name: Set Up Python 3.10
+      - name: Set Up Python
         uses: actions/setup-python@v7
         with:
           python-version: ${{matrix.python-version}}
@@ -45,7 +45,7 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
             if [ ! -d "gh-actions-learn-1" ]; then
-              git clone https://github.com/${{github.repository}}.git
+              git clone https://github.com/${{github.repository}}.git gh-actions-learn-1
             fi
 
             cd gh-actions-learn-1
