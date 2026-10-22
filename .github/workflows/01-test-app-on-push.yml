@@ -41,7 +41,7 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
             if [ ! -d "gh-actions-learn-1" ]; then
-              git clone ${{github.repository}}.git
+              git clone https://github.com/${{github.repository}}.git
             fi
 
             cd gh-actions-learn-1
