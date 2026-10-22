@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Calculator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="calculator">
+        <div class="display-container">
+            <div id="prev-display" class="prev-display"></div>
+            <input type="text" id="calc-display" class="current-display" disabled value="0">
+        </div>
+        <div class="keypad">
+            <button class="btn btn-action span-2" onclick="clearDisplay()">C</button>
+            <button class="btn btn-action" onclick="deleteLast()">⌫</button>
+            <button class="btn operator" data-op="divide" onclick="setOperation('divide')">÷</button>
+            
+            <button class="btn num" onclick="appendNumber('7')">7</button>
+            <button class="btn num" onclick="appendNumber('8')">8</button>
+            <button class="btn num" onclick="appendNumber('9')">9</button>
+            <button class="btn operator" data-op="multiply" onclick="setOperation('multiply')">×</button>
+            
+            <button class="btn num" onclick="appendNumber('4')">4</button>
+            <button class="btn num" onclick="appendNumber('5')">5</button>
+            <button class="btn num" onclick="appendNumber('6')">6</button>
+            <button class="btn operator" data-op="subtract" onclick="setOperation('subtract')">−</button>
+            
+            <button class="btn num" onclick="appendNumber('1')">1</button>
+            <button class="btn num" onclick="appendNumber('2')">2</button>
+            <button class="btn num" onclick="appendNumber('3')">3</button>
+            <button class="btn operator" data-op="add" onclick="setOperation('add')">+</button>
+            
+            <button class="btn num span-2" onclick="appendNumber('0')">0</button>
+            <button class="btn num" onclick="appendNumber('.')">.</button>
+            <button class="btn operator equals" onclick="calculate()">=</button>
+        </div>
+    </div>
+    
+    <script>
+        let currentInput = '';
+        let previousInput = '';
+        let operation = null;
+        let shouldResetDisplay = false;
+
+        const display = document.getElementById('calc-display');
+        const prevDisplay = document.getElementById('prev-display');
+        const opSymbols = { 'add': '+', 'subtract': '−', 'multiply': '×', 'divide': '÷' };
+
+        function updateDisplay() {
+            display.value = currentInput || '0';
+            if (operation != null) {
+                prevDisplay.innerText = `${previousInput} ${opSymbols[operation]}`;
+            } else {
+                prevDisplay.innerText = '';
+            }
+        }
+
+        function appendNumber(num) {
+            if (display.value === '0' && num !== '.' || shouldResetDisplay) {
+                currentInput = num;
+                shouldResetDisplay = false;
+            } else {
+                if (num === '.' && currentInput.includes('.')) return;
+                currentInput += num;
+            }
+            removeActiveOperator();
+            updateDisplay();
+        }
+
+        function deleteLast() {
+            if (shouldResetDisplay) return;
+            currentInput = currentInput.toString().slice(0, -1);
+            updateDisplay();
+        }
+
+        function clearDisplay() {
+            currentInput = '';
+            previousInput = '';
+            operation = null;
+            shouldResetDisplay = false;
+            removeActiveOperator();
+            updateDisplay();
+        }
+
+        function removeActiveOperator() {
+            document.querySelectorAll('.operator').forEach(btn => btn.classList.remove('active'));
+        }
+
+        function setOperation(op) {
+            if (currentInput === '' && previousInput === '') return;
+            if (operation !== null && !shouldResetDisplay) {
+                calculate(op); // Chain operations
+                return;
+            }
+            
+            previousInput = currentInput || display.value;
+            operation = op;
+            shouldResetDisplay = true;
+            
+            removeActiveOperator();
+            document.querySelector(`[data-op="${op}"]`).classList.add('active');
+            updateDisplay();
+        }
+
+        async function calculate(nextOp = null) {
+            if (operation === null || shouldResetDisplay && nextOp === null) return;
+            
+            const num2 = shouldResetDisplay ? previousInput : currentInput;
+            const currentOp = operation;
+            
+            try {
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        num1: previousInput,
+                        num2: num2,
+                        operation: currentOp
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentInput = String(data.result);
+                    previousInput = currentInput;
+                    operation = nextOp;
+                    shouldResetDisplay = true;
+                    
+                    removeActiveOperator();
+                    if (nextOp) document.querySelector(`[data-op="${nextOp}"]`).classList.add('active');
+                    updateDisplay();
+                } else {
+                    currentInput = data.error;
+                    operation = null;
+                    shouldResetDisplay = true;
+                    updateDisplay();
+                }
+            } catch (error) {
+                currentInput = 'Error';
+                updateDisplay();
+            }
+        }
+
+        // Hardware keyboard mapping
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '0' && e.key <= '9' || e.key === '.') appendNumber(e.key);
+            if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calculate(); }
+            if (e.key === 'Escape' || e.key === 'Delete') clearDisplay();
+            if (e.key === 'Backspace') deleteLast();
+            
+            const keyOpMap = { '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide' };
+            if (keyOpMap[e.key]) {
+                e.preventDefault();
+                setOperation(keyOpMap[e.key]);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+services:
+  calculator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flask-calculator
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Native Python HTTP request to verify the container is actually serving traffic
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/\")' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
