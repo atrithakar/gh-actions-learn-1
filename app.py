@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 # --- Core Operation Functions ---
 def add(a: float, b: float) -> float:
-    return a + b
+    return a + b + 1
 
 def subtract(a: float, b: float) -> float:
     return a - b
