@@ -1,6 +1,49 @@
-from flask import Flask, request, jsonify, render_template
+import time
+from flask import Flask, request, jsonify, render_template, Response
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 app = Flask(__name__)
+
+# --- Prometheus Metrics Definition ---
+REQUEST_COUNT = Counter(
+    'flask_http_requests_total',
+    'Total HTTP Requests',
+    ['method', 'endpoint', 'http_status']
+)
+
+REQUEST_LATENCY = Histogram(
+    'flask_http_request_duration_seconds',
+    'HTTP Request Latency in seconds',
+    ['method', 'endpoint']
+)
+
+# --- Metrics Middleware ---
+@app.before_request
+def before_request():
+    request.start_time = time.time()
+
+@app.after_request
+def after_request(response):
+    # Skip tracking for the /metrics endpoint itself to prevent metric noise
+    if request.path == '/metrics':
+        return response
+
+    request_latency = time.time() - request.start_time
+    
+    # Record metrics
+    REQUEST_COUNT.labels(
+        method=request.method,
+        endpoint=request.path,
+        http_status=response.status_code
+    ).inc()
+    
+    REQUEST_LATENCY.labels(
+        method=request.method,
+        endpoint=request.path
+    ).observe(request_latency)
+
+    return response
+
 
 # --- Core Operation Functions ---
 def add(a: float, b: float) -> float:
@@ -24,6 +67,7 @@ OPERATIONS = {
     'multiply': multiply,
     'divide': divide
 }
+
 
 # --- Routes ---
 @app.route('/')
@@ -56,6 +100,12 @@ def calculate():
 
     # Format to drop trailing .0 on whole numbers
     return jsonify({'result': f"{result:g}"})
+
+# --- Prometheus Metrics Route ---
+@app.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
