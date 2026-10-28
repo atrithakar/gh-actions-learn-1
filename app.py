@@ -6,15 +6,15 @@ app = Flask(__name__)
 
 # --- Prometheus Metrics Definition ---
 REQUEST_COUNT = Counter(
-    'flask_http_requests_total',
+    'flask_http_request_total',
     'Total HTTP Requests',
-    ['method', 'endpoint', 'http_status']
+    ['app', 'method', 'endpoint', 'status']
 )
 
 REQUEST_LATENCY = Histogram(
     'flask_http_request_duration_seconds',
     'HTTP Request Latency in seconds',
-    ['method', 'endpoint']
+    ['app', 'method', 'endpoint']
 )
 
 # --- Metrics Middleware ---
@@ -24,20 +24,21 @@ def before_request():
 
 @app.after_request
 def after_request(response):
-    # Skip tracking for the /metrics endpoint itself to prevent metric noise
     if request.path == '/metrics':
         return response
 
     request_latency = time.time() - request.start_time
     
-    # Record metrics
+    # Pass 'app' label so dashboard variables detect it
     REQUEST_COUNT.labels(
+        app='flask-calc-app',
         method=request.method,
         endpoint=request.path,
-        http_status=response.status_code
+        status=response.status_code
     ).inc()
     
     REQUEST_LATENCY.labels(
+        app='flask-calc-app',
         method=request.method,
         endpoint=request.path
     ).observe(request_latency)
