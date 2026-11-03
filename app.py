@@ -93,11 +93,12 @@ def after_request(response):
     return response
 
 def some_complex_work():
+    pass
     # Random delay between 0 and 2500 ms
-    time.sleep(random.uniform(0, 2.5))
+    # time.sleep(random.uniform(0, 2.5))
     # 1 in 6 chance of failure
-    if random.randint(1, 6) == 1:
-        raise BackendError(random.choice(SIMULATED_ERRORS))
+    # if random.randint(1, 6) == 1:
+    #     raise BackendError(random.choice(SIMULATED_ERRORS))
 
 # --- Core Operation Functions ---
 def add(a: float, b: float) -> float:
