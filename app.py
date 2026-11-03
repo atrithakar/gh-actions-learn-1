@@ -1,8 +1,26 @@
 import time
 from flask import Flask, request, jsonify, render_template, Response
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import random
+import time
 
 app = Flask(__name__)
+
+# Place after `app = Flask(__name__)`
+class BackendError(Exception):
+    """Simulated transient failure in a downstream dependency."""
+
+SIMULATED_ERRORS = [
+    "Upstream compute service timed out",
+    "Connection to calculation worker was reset by peer",
+    "Worker pool exhausted: no free workers available",
+    "Failed to acquire lock on shared computation cache",
+    "Calculation backend returned a malformed response",
+]
+
+@app.errorhandler(BackendError)
+def handle_backend_error(e):
+    return jsonify({'error': str(e)}), 500
 
 # --- Prometheus Metrics Definition ---
 REQUEST_COUNT = Counter(
@@ -45,18 +63,28 @@ def after_request(response):
 
     return response
 
+def some_complex_work():
+    # Random delay between 0 and 2500 ms
+    time.sleep(random.uniform(0, 2.5))
+    # 1 in 6 chance of failure
+    if random.randint(1, 6) == 1:
+        raise BackendError(random.choice(SIMULATED_ERRORS))
 
 # --- Core Operation Functions ---
 def add(a: float, b: float) -> float:
+    some_complex_work()
     return a + b
 
 def subtract(a: float, b: float) -> float:
+    some_complex_work()
     return a - b
 
 def multiply(a: float, b: float) -> float:
+    some_complex_work()
     return a * b
 
 def divide(a: float, b: float) -> float:
+    some_complex_work()
     if b == 0:
         raise ValueError("Division by zero")
     return a / b
