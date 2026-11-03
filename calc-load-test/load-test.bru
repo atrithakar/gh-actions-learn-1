@@ -1,0 +1,65 @@
+meta {
+  name: load-test
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  const base = bru.getEnvVar('baseUrl');
+  const rate = Number(bru.getEnvVar('rate'));          // requests per second
+  const duration = Number(bru.getEnvVar('duration'));  // seconds
+  const ops = ['add', 'subtract', 'multiply', 'divide'];
+  const rnd = (n) => Math.floor(Math.random() * n) + 1; // 1..n, so divisor is never 0
+
+  const stats = { sent: 0, done: 0, status: {}, latencies: [] };
+  const pending = [];
+
+  function record(key, ms) {
+    stats.done++;
+    stats.status[key] = (stats.status[key] || 0) + 1;
+    stats.latencies.push(ms);
+  }
+
+  async function fire() {
+    const t = Date.now();
+    try {
+      const res = await bru.sendRequest({
+        method: 'POST',
+        url: base + '/calculate',
+        headers: { 'Content-Type': 'application/json' },
+        data: { num1: rnd(100), num2: rnd(100), operation: ops[rnd(4) - 1] },
+        timeout: 10000
+      });
+      record(String((res && res.status) || 'ok'), Date.now() - t);
+    } catch (e) {
+      const status = e && e.response && e.response.status;
+      record(String(status || (e && e.code) || 'error'), Date.now() - t);
+    }
+  }
+
+  // Open-loop sender: requests start on a fixed schedule and are NOT awaited
+  // one by one, so slow responses (up to 2.5s) do not reduce the send rate.
+  const interval = 1000 / rate;
+  const total = rate * duration;
+  const start = Date.now();
+  for (let i = 0; i < total; i++) {
+    const wait = start + i * interval - Date.now();
+    if (wait > 0) await bru.sleep(wait);
+    stats.sent++;
+    pending.push(fire());
+  }
+  const sendSeconds = (Date.now() - start) / 1000;
+  await Promise.all(pending); // wait for in-flight requests to finish
+
+  const lat = stats.latencies.sort((a, b) => a - b);
+  const pct = (p) => lat[Math.min(lat.length - 1, Math.floor(lat.length * p))];
+  console.log(`sent=${stats.sent} done=${stats.done} achieved=${(stats.sent / sendSeconds).toFixed(1)} req/s`);
+  console.log('status counts: ' + JSON.stringify(stats.status));
+  console.log(`latency ms: p50=${pct(0.5)} p95=${pct(0.95)} p99=${pct(0.99)}`);
+}

@@ -2,9 +2,36 @@ import time
 from flask import Flask, request, jsonify, render_template, Response
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import random
-import time
+import logging
+import os
+from multiprocessing import Queue
+import logging_loki
 
 app = Flask(__name__)
+
+def setup_logger():
+    log = logging.getLogger("flask-calc-app")
+    if log.handlers:  # avoid duplicate handlers on reload or re-import
+        return log
+    log.setLevel(logging.INFO)
+    log.propagate = False
+
+    console = logging.StreamHandler()
+    console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    log.addHandler(console)
+
+    loki_url = os.getenv("LOKI_URL")
+    if loki_url:  # Loki is optional, so tests and local runs work without it
+        log.addHandler(logging_loki.LokiQueueHandler(
+            Queue(-1),
+            url=loki_url,
+            tags={"application": "flask-calc-app", "environment": os.getenv("APP_ENV", "dev")},
+            version="1",
+        ))
+    return log
+
+
+logger = setup_logger()
 
 # Place after `app = Flask(__name__)`
 class BackendError(Exception):
@@ -20,6 +47,7 @@ SIMULATED_ERRORS = [
 
 @app.errorhandler(BackendError)
 def handle_backend_error(e):
+    logger.error('backend_error path=%s error="%s"', request.path, e)
     return jsonify({'error': str(e)}), 500
 
 # --- Prometheus Metrics Definition ---
@@ -46,21 +74,22 @@ def after_request(response):
         return response
 
     request_latency = time.time() - request.start_time
-    
-    # Pass 'app' label so dashboard variables detect it
     REQUEST_COUNT.labels(
         app='flask-calc-app',
         method=request.method,
         endpoint=request.path,
         status=response.status_code
     ).inc()
-    
     REQUEST_LATENCY.labels(
         app='flask-calc-app',
         method=request.method,
         endpoint=request.path
     ).observe(request_latency)
 
+    logger.info(
+        "request method=%s path=%s status=%s duration_ms=%.0f",
+        request.method, request.path, response.status_code, request_latency * 1000,
+    )
     return response
 
 def some_complex_work():

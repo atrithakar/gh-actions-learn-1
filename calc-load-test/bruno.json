@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "calc-load-test",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

@@ -16,3 +16,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
+    environment:
+      LOKI_URL: http://loki:3100/loki/api/v1/push
+
+  loki:
+  image: grafana/loki:latest
+  command: -config.file=/etc/loki/local-config.yaml
+  ports:
+    - "127.0.0.1:3100:3100"   # only this host can reach it
+  restart: unless-stopped
