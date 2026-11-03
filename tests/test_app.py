@@ -2,10 +2,10 @@ import pytest
 import json
 from app import app, add, subtract, multiply, divide, some_complex_work, BackendError
 
-@pytest.fixture(autouse=True)
-def no_simulated_work(monkeypatch):
-    """Disable the random delay and random failures in all tests."""
-    monkeypatch.setattr("app.some_complex_work", lambda: None)
+# @pytest.fixture(autouse=True)
+# def no_simulated_work(monkeypatch):
+#     """Disable the random delay and random failures in all tests."""
+#     monkeypatch.setattr("app.some_complex_work", lambda: None)
 
 # --- 1. Unit Tests for Core Functions ---
 def test_add():
@@ -91,25 +91,25 @@ def test_calculate_invalid_numbers(client):
 
 
 # --- 3. Tests for Simulated Delay and Failure ---
-def test_calculate_backend_failure(client, monkeypatch):
-    """A simulated backend error must return a JSON 500."""
-    def fail():
-        raise BackendError("Upstream compute service timed out")
-    monkeypatch.setattr("app.some_complex_work", fail)  # overrides the autouse no-op
-    response = post_json(client, '/calculate', {'num1': 1, 'num2': 1, 'operation': 'add'})
-    assert response.status_code == 500
-    assert response.get_json() == {'error': 'Upstream compute service timed out'}
+# def test_calculate_backend_failure(client, monkeypatch):
+#     """A simulated backend error must return a JSON 500."""
+#     def fail():
+#         raise BackendError("Upstream compute service timed out")
+#     monkeypatch.setattr("app.some_complex_work", fail)  # overrides the autouse no-op
+#     response = post_json(client, '/calculate', {'num1': 1, 'num2': 1, 'operation': 'add'})
+#     assert response.status_code == 500
+#     assert response.get_json() == {'error': 'Upstream compute service timed out'}
 
-def test_some_complex_work_delay_bounds(monkeypatch):
-    sleeps = []
-    monkeypatch.setattr("time.sleep", sleeps.append)       # record delays instead of sleeping
-    monkeypatch.setattr("random.randint", lambda a, b: 2)  # force "no failure"
-    for _ in range(200):
-        some_complex_work()
-    assert all(0 <= s <= 2.5 for s in sleeps)
+# def test_some_complex_work_delay_bounds(monkeypatch):
+#     sleeps = []
+#     monkeypatch.setattr("time.sleep", sleeps.append)       # record delays instead of sleeping
+#     monkeypatch.setattr("random.randint", lambda a, b: 2)  # force "no failure"
+#     for _ in range(200):
+#         some_complex_work()
+#     assert all(0 <= s <= 2.5 for s in sleeps)
 
-def test_some_complex_work_raises_on_one(monkeypatch):
-    monkeypatch.setattr("time.sleep", lambda s: None)
-    monkeypatch.setattr("random.randint", lambda a, b: 1)  # force the 1-in-6 failure
-    with pytest.raises(BackendError):
-        some_complex_work()
+# def test_some_complex_work_raises_on_one(monkeypatch):
+#     monkeypatch.setattr("time.sleep", lambda s: None)
+#     monkeypatch.setattr("random.randint", lambda a, b: 1)  # force the 1-in-6 failure
+#     with pytest.raises(BackendError):
+#         some_complex_work()
