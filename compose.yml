@@ -23,5 +23,5 @@ services:
   image: grafana/loki:latest
   command: -config.file=/etc/loki/local-config.yaml
   ports:
-    - "127.0.0.1:3100:3100"   # only this host can reach it
+    - "3100:3100"   # only this host can reach it
   restart: unless-stopped
