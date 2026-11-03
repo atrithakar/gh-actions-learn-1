@@ -90,7 +90,7 @@ def test_calculate_invalid_numbers(client):
     assert response.get_json() == {'error': 'Inputs must be valid numbers'}
 
 
---- 3. Tests for Simulated Delay and Failure ---
+# --- 3. Tests for Simulated Delay and Failure ---
 def test_calculate_backend_failure(client, monkeypatch):
     """A simulated backend error must return a JSON 500."""
     def fail():
